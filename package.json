@@ -1,12 +1,12 @@
 {
   "name": "shell-demo",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "./dist/index.js",
   "license": "MIT",
   "type": "commonjs",
   "author": "SHUAXIN",
   "bin": {
-    "sorter": "./bin/index.js"
+    "sorter": "./dist/bin/index.js"
   },
   "scripts": {
     "build": "tsc -b ./tsconfig.json",
