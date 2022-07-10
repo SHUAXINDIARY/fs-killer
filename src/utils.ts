@@ -1,15 +1,10 @@
-import { existsSync} from "fs";
-import {
-  readdir,
-  mkdir,
-  opendir,
-  readFile,
-  writeFile,
-} from "fs/promises";
+import { existsSync } from "fs";
+import { Command, program } from "commander";
+import { readdir, mkdir, opendir, readFile, writeFile } from "fs/promises";
 import path from "path";
 import { ERRCODEMAP, operationTypeEnum } from "./constant";
 
-export class CateFiles {
+export class FileSorter {
   private BASEPATH = "";
 
   constructor(path: string) {
@@ -91,3 +86,4 @@ export class CateFiles {
     }
   }
 }
+
