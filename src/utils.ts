@@ -1,9 +1,8 @@
-import { existsSync, readFileSync, writeFileSync } from "fs";
+import { existsSync} from "fs";
 import {
   readdir,
   mkdir,
   opendir,
-  open,
   readFile,
   writeFile,
 } from "fs/promises";
