@@ -13,24 +13,24 @@ export const ARGMAP = {
   // 指定目录
   DIR: "directory",
   // 指定类型
-  TYPE: "TYPE",
+  // TYPE: "TYPE",
 };
 
 // 参数配置选项
 export const COMMAND_OPTIONS = {
   [ARGMAP.DIR]: "-d, --directory <value>",
-  [ARGMAP.TYPE]: "",
+  // [ARGMAP.TYPE]: "",
 };
 
 // 参数描述
 export const COMMAND_DES = {
   [ARGMAP.DIR]: "select a directory",
-  [ARGMAP.TYPE]: "",
+  // [ARGMAP.TYPE]: "",
 };
 
 // 参数默认值
 export const COMMAND_DEFAULT_VALUE = {
-  // 默认为当前执行目录
+  // 默认对当前目录文件进行分类
   [ARGMAP.DIR]: process.cwd(),
-  [ARGMAP.TYPE]: "all",
+  // [ARGMAP.TYPE]: "all",
 };

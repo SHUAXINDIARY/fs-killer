@@ -1,8 +1,8 @@
 import { existsSync } from "fs";
-import { Command, program } from "commander";
 import { readdir, mkdir, opendir, readFile, writeFile } from "fs/promises";
 import path from "path";
 import { ERRCODEMAP, operationTypeEnum } from "./constant";
+import chalk from "chalk";
 
 export class FileSorter {
   private BASEPATH = "";
@@ -78,12 +78,12 @@ export class FileSorter {
   // 执行入口
   async start() {
     if (await this.isExistsDir()) {
+      console.log(chalk.bgBlue.bold.white("开始执行"));
       const operation = await this.batchCreateDir();
       operation && this.copyOrMoveFiles();
-      console.log("执行完成");
+      console.log(chalk.bgGreenBright.bold.white("执行完成"));
     } else {
-      console.log("文件不存在");
+      console.log(chalk.bgRed.bold.white("目录不存在"));
     }
   }
 }
-

@@ -1,4 +1,4 @@
-import { FileSorter } from "./utils";
+import { FileSorter } from "./FileSorter";
 
 // 临时测试使用
 const PATH = "./source";
