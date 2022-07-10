@@ -1,5 +1,5 @@
 {
-  "name": "shell-demo",
+  "name": "file-sorter",
   "version": "1.0.0",
   "main": "./dist/index.js",
   "license": "MIT",
@@ -8,11 +8,18 @@
   "bin": {
     "sorter": "./dist/bin/index.js"
   },
+  "keywords": [
+    "node",
+    "cli",
+    "filesort"
+  ],
   "scripts": {
     "build": "tsc -b ./tsconfig.json",
     "start": "ts-node ./src/index.ts",
     "sorter": "ts-node ./src/bin/index.ts"
   },
+  "homepage": "https://github.com/SHUAXINDIARY/fileSorter",
+  "repository": "https://github.com/SHUAXINDIARY/fileSorter",
   "devDependencies": {
     "@tsconfig/node16": "^1.0.3",
     "@types/node": "^18.0.3",
