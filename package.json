@@ -1,12 +1,12 @@
 {
-  "name": "file-sorter",
+  "name": "fs-killer",
   "version": "1.0.0",
-  "main": "./dist/index.js",
+  "main": "./lib/index.js",
   "license": "MIT",
   "type": "commonjs",
   "author": "SHUAXIN",
   "bin": {
-    "sorter": "./dist/bin/index.js"
+    "sorter": "./lib/bin/index.js"
   },
   "keywords": [
     "node",
