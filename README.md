@@ -34,4 +34,6 @@ sorter
   - [x] cli支持 - support cli
 
   - [ ] 命令行交互优化 - interactional optimization
+  
+  - [ ] 操作数量展示 - display number of operation files
 
