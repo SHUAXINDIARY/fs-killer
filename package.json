@@ -20,6 +20,9 @@
   },
   "homepage": "https://github.com/SHUAXINDIARY/fileSorter",
   "repository": "https://github.com/SHUAXINDIARY/fileSorter",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
   "devDependencies": {
     "@tsconfig/node16": "^1.0.3",
     "@types/node": "^18.0.3",

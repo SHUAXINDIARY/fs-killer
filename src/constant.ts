@@ -12,19 +12,23 @@ export const ERRCODEMAP = {
 export const ARGMAP = {
   // 指定目录
   DIR: "directory",
+  // 获取当前目录下文件数量 和 所有格式
+  INFO: "info",
   // 指定类型
-  // TYPE: "TYPE",
+  // TYPE: "getType",
 };
 
 // 参数配置选项
 export const COMMAND_OPTIONS = {
-  [ARGMAP.DIR]: "-d, --directory <value>",
+  [ARGMAP.DIR]: "-d, --directory <dirname>",
+  // [ARGMAP.INFO]: "-i, --info",
   // [ARGMAP.TYPE]: "",
 };
 
 // 参数描述
 export const COMMAND_DES = {
   [ARGMAP.DIR]: "select a directory",
+  // [ARGMAP.INFO]: "list info for current directory,like files count..",
   // [ARGMAP.TYPE]: "",
 };
 

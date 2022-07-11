@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-import { program } from "commander";
 import { FileSorter } from "../FileSorter";
-import { initOptions } from "../command";
+import { SortCommand } from "../command";
+import { ARGMAP } from "../constant";
 
-initOptions();
+const sorter = new SortCommand(ARGMAP);
 
-const options = program.opts();
+const options = sorter.getOptions();
 
 const cf = new FileSorter(options.directory);
 
