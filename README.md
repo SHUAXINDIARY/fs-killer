@@ -18,6 +18,18 @@ sorter
 
 ```
 
+### 所有选项 - all options
+
+```shell
+
+# specifying a directory
+sort -d source
+
+# specifying a file types
+sort -t JPG
+
+```
+
 # TODO
 
 ### 核心 - core：
@@ -26,7 +38,8 @@ sorter
 
 - [x] 指定要被分类的目录 - specify folder
 
-- [ ] 指定分类的类型 - specify file type
+- [x] 指定分类的类型 - specify file type
+
 - [ ] 列出目录下所有文件类型 - view a collection of all file types in a directory
 
 
