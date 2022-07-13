@@ -1,6 +1,6 @@
 {
   "name": "fs-killer",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "main": "./lib/index.js",
   "license": "MIT",
   "type": "commonjs",
@@ -20,9 +20,6 @@
   },
   "homepage": "https://github.com/SHUAXINDIARY/fileSorter",
   "repository": "https://github.com/SHUAXINDIARY/fileSorter",
-  "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
-  },
   "devDependencies": {
     "@tsconfig/node16": "^1.0.3",
     "@types/node": "^18.0.3",
