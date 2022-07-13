@@ -1,14 +1,20 @@
 import { existsSync } from "fs";
 import { readdir, mkdir, opendir, readFile, writeFile } from "fs/promises";
 import path from "path";
-import { ERRCODEMAP, operationTypeEnum } from "./constant";
+import {
+  ARGMAP,
+  COMMAND_DEFAULT_VALUE,
+  ERRCODEMAP,
+  operationTypeEnum,
+} from "./constant";
 import chalk from "chalk";
 
 export class FileSorter {
   private BASEPATH = "";
-
-  constructor(path: string) {
+  private OPERATIONTYPE = "";
+  constructor(path: string, operationType: string) {
     this.BASEPATH = path;
+    this.OPERATIONTYPE = operationType;
   }
 
   isExistsDir() {
@@ -41,7 +47,10 @@ export class FileSorter {
   }
 
   async batchCreateDir() {
-    const types = await this.getAllFileTyps();
+    const types =
+      this.OPERATIONTYPE === COMMAND_DEFAULT_VALUE[ARGMAP.TYPE]
+        ? await this.getAllFileTyps()
+        : [this.OPERATIONTYPE];
     for (let i = 0; i < types.length; i++) {
       try {
         await mkdir(this.BASEPATH + "/" + types[i]);
@@ -56,20 +65,36 @@ export class FileSorter {
     }
     return true;
   }
-  async copyOrMoveFiles(operationType = operationTypeEnum.COPY) {
+
+  async readAndWriteFile(readPath: string, writePath: string) {
+    try {
+      const data = await readFile(readPath);
+      writeFile(path.resolve(writePath), data);
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  async batchCopyOrMoveFiles(operationType = operationTypeEnum.COPY) {
     if (operationType === operationTypeEnum.COPY) {
       const dir = await opendir(this.BASEPATH);
       for await (const dirent of dir) {
         if (dirent.isFile()) {
-          const data = await readFile(
-            path.resolve(`${this.BASEPATH}/${dirent.name}`)
-          );
-          writeFile(
-            path.resolve(
-              `${this.BASEPATH}/${dirent.name.split(".")[1]}/${dirent.name}`
-            ),
-            data
-          );
+          if (this.OPERATIONTYPE === COMMAND_DEFAULT_VALUE[ARGMAP.TYPE]) {
+            this.readAndWriteFile(
+              path.resolve(`${this.BASEPATH}/${dirent.name}`),
+              path.resolve(
+                `${this.BASEPATH}/${dirent.name.split(".")[1]}/${dirent.name}`
+              )
+            );
+          } else if (dirent.name.split(".")[1] === this.OPERATIONTYPE) {
+            this.readAndWriteFile(
+              path.resolve(`${this.BASEPATH}/${dirent.name}`),
+              path.resolve(
+                `${this.BASEPATH}/${dirent.name.split(".")[1]}/${dirent.name}`
+              )
+            );
+          }
         }
       }
     }
@@ -80,7 +105,7 @@ export class FileSorter {
     if (await this.isExistsDir()) {
       console.log(chalk.bgBlue.bold.white("开始执行"));
       const operation = await this.batchCreateDir();
-      operation && this.copyOrMoveFiles();
+      operation && this.batchCopyOrMoveFiles();
       console.log(chalk.bgGreenBright.bold.white("执行完成"));
     } else {
       console.log(chalk.bgRed.bold.white("目录不存在"));

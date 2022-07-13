@@ -8,7 +8,6 @@ import {
 const _package = require("../package.json");
 
 export class SortCommand {
-  
   private comm = program;
 
   constructor(commandList: any) {
@@ -25,6 +24,9 @@ export class SortCommand {
   }
 
   getOptions() {
-    return this.comm.opts();
+    return this.comm.opts<{
+      directory?: string;
+      type?: string;
+    }>();
   }
 }
