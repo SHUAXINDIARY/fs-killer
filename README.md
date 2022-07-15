@@ -23,10 +23,14 @@ sorter
 ```shell
 
 # specifying a directory
-sort -d source
+sorter -d source
 
 # specifying a file types
-sort -t JPG
+sorter -t JPG
+
+# specifying sorter mode - move files
+# if not specified, replication is performed
+sorter -m 
 
 ```
 
@@ -40,13 +44,15 @@ sort -t JPG
 
 - [x] 指定分类的类型 - specify file type
 
+- [x] 复制或者移动分类文件 - copy or move classified files
+
 - [ ] 列出目录下所有文件类型 - view a collection of all file types in a directory
 
+- [ ] 操作数量展示 - display number of operation files
 
 ### 其他 - other：
   - [x] cli支持 - support cli
 
   - [ ] 命令行交互优化 - interactional optimization
   
-  - [ ] 操作数量展示 - display number of operation files
 
