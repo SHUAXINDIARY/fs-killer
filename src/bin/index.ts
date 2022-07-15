@@ -7,6 +7,10 @@ const sorter = new SortCommand(ARGMAP);
 
 const options = sorter.getOptions();
 
-const cf = new FileSorter(options.directory as string, options.type as string);
+const cf = new FileSorter(
+  options.directory as string,
+  options.type as string,
+  options.move ? true : false
+);
 
 cf.start();

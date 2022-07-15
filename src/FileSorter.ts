@@ -1,25 +1,33 @@
 import { existsSync } from "fs";
-import { readdir, mkdir, opendir, readFile, writeFile } from "fs/promises";
-import path from "path";
 import {
-  ARGMAP,
-  COMMAND_DEFAULT_VALUE,
-  ERRCODEMAP,
-  operationTypeEnum,
-} from "./constant";
+  readdir,
+  mkdir,
+  opendir,
+  readFile,
+  writeFile,
+  unlink,
+} from "fs/promises";
+import path from "path";
+import { ARGMAP, COMMAND_DEFAULT_VALUE, ERRCODEMAP } from "./constant";
 import chalk from "chalk";
 
 export class FileSorter {
-  private BASEPATH = "";
-  private OPERATIONTYPE = "";
-  constructor(path: string, operationType: string) {
-    this.BASEPATH = path;
-    this.OPERATIONTYPE = operationType;
+  // 操作目录
+  private BASE_PATH = "";
+  // 操作类型
+  private OPERATION_TYPE = "";
+  // 删除 or 移动
+  private isMove = false;
+
+  constructor(path: string, operationType: string, isMove = false) {
+    this.BASE_PATH = path;
+    this.OPERATION_TYPE = operationType;
+    this.isMove = isMove;
   }
 
   isExistsDir() {
     try {
-      if (existsSync(this.BASEPATH)) {
+      if (existsSync(this.BASE_PATH)) {
         return true;
       } else {
         return false;
@@ -30,9 +38,10 @@ export class FileSorter {
     }
   }
 
+  // 获取目录下文件类型枚举
   async getAllFileTyps() {
     try {
-      const data = await readdir(this.BASEPATH);
+      const data = await readdir(this.BASE_PATH);
       return data.reduce((total, item) => {
         const _type = item.split(".")?.[1];
         if (item.split(".").length > 1 && !total.includes(_type)) {
@@ -46,14 +55,15 @@ export class FileSorter {
     }
   }
 
+  // 批量创建目录
   async batchCreateDir() {
     const types =
-      this.OPERATIONTYPE === COMMAND_DEFAULT_VALUE[ARGMAP.TYPE]
+      this.OPERATION_TYPE === COMMAND_DEFAULT_VALUE[ARGMAP.TYPE]
         ? await this.getAllFileTyps()
-        : [this.OPERATIONTYPE];
+        : [this.OPERATION_TYPE];
     for (let i = 0; i < types.length; i++) {
       try {
-        await mkdir(this.BASEPATH + "/" + types[i]);
+        await mkdir(this.BASE_PATH + "/" + types[i]);
       } catch (error) {
         if ((error as any).code === ERRCODEMAP.EEXIST) {
           continue;
@@ -66,6 +76,7 @@ export class FileSorter {
     return true;
   }
 
+  // 读写文件
   async readAndWriteFile(readPath: string, writePath: string) {
     try {
       const data = await readFile(readPath);
@@ -75,28 +86,48 @@ export class FileSorter {
     }
   }
 
-  async batchCopyOrMoveFiles(operationType = operationTypeEnum.COPY) {
-    if (operationType === operationTypeEnum.COPY) {
-      const dir = await opendir(this.BASEPATH);
-      for await (const dirent of dir) {
-        if (dirent.isFile()) {
-          if (this.OPERATIONTYPE === COMMAND_DEFAULT_VALUE[ARGMAP.TYPE]) {
-            this.readAndWriteFile(
-              path.resolve(`${this.BASEPATH}/${dirent.name}`),
-              path.resolve(
-                `${this.BASEPATH}/${dirent.name.split(".")[1]}/${dirent.name}`
-              )
-            );
-          } else if (dirent.name.split(".")[1] === this.OPERATIONTYPE) {
-            this.readAndWriteFile(
-              path.resolve(`${this.BASEPATH}/${dirent.name}`),
-              path.resolve(
-                `${this.BASEPATH}/${dirent.name.split(".")[1]}/${dirent.name}`
-              )
-            );
-          }
+  // 移除文件
+  async removeAllFile() {
+    const dir = await opendir(this.BASE_PATH);
+    for await (const dirent of dir) {
+      if (dirent.isFile()) {
+        if (this.OPERATION_TYPE === COMMAND_DEFAULT_VALUE[ARGMAP.TYPE]) {
+          await unlink(path.resolve(`${this.BASE_PATH}/${dirent.name}`));
+        } else if (dirent.name.split(".")[1] === this.OPERATION_TYPE) {
+          await unlink(path.resolve(`${this.BASE_PATH}/${dirent.name}`));
         }
       }
+    }
+  }
+
+  async batchCopyOrMoveFiles() {
+    const dir = await opendir(this.BASE_PATH);
+    for await (const dirent of dir) {
+      if (dirent.isFile()) {
+        // 分类全部文件
+        if (this.OPERATION_TYPE === COMMAND_DEFAULT_VALUE[ARGMAP.TYPE]) {
+          await this.readAndWriteFile(
+            path.resolve(`${this.BASE_PATH}/${dirent.name}`),
+            path.resolve(
+              `${this.BASE_PATH}/${dirent.name.split(".")[1]}/${dirent.name}`
+            )
+          );
+          // 分类指定类型的文件
+        } else if (dirent.name.split(".")[1] === this.OPERATION_TYPE) {
+          await this.readAndWriteFile(
+            path.resolve(`${this.BASE_PATH}/${dirent.name}`),
+            path.resolve(
+              `${this.BASE_PATH}/${dirent.name.split(".")[1]}/${dirent.name}`
+            )
+          );
+        }
+      }
+    }
+    console.log("调试ismove");
+    console.log(this.isMove);
+
+    if (this.isMove) {
+      await this.removeAllFile();
     }
   }
 
@@ -105,7 +136,7 @@ export class FileSorter {
     if (await this.isExistsDir()) {
       console.log(chalk.bgBlue.bold.white("开始执行"));
       const operation = await this.batchCreateDir();
-      operation && this.batchCopyOrMoveFiles();
+      operation && (await this.batchCopyOrMoveFiles());
       console.log(chalk.bgGreenBright.bold.white("执行完成"));
     } else {
       console.log(chalk.bgRed.bold.white("目录不存在"));
