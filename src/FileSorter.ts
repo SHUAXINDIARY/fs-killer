@@ -123,8 +123,6 @@ export class FileSorter {
         }
       }
     }
-    console.log("调试ismove");
-    console.log(this.isMove);
 
     if (this.isMove) {
       await this.removeAllFile();

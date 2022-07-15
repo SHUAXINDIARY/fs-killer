@@ -14,15 +14,11 @@ export class SortCommand {
     this.comm.name(_package.name).version(_package.version);
     Object.keys(commandList).forEach((key) => {
       const commandKey = (commandList as Record<string, any>)[key];
-      if (commandKey === ARGMAP.IS_MOVE) {
-        this.comm.option(COMMAND_OPTIONS[commandKey], COMMAND_DES[commandKey]);
-      } else {
         this.comm.option(
           COMMAND_OPTIONS[commandKey],
           COMMAND_DES[commandKey],
           COMMAND_DEFAULT_VALUE[commandKey]
         );
-      }
     });
     this.comm.parse();
   }
