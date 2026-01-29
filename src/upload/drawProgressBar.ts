@@ -1,12 +1,14 @@
 const readline = require("readline");
 
-export const drawProgressBar = (progress: number) => {
+export const drawProgressBar = (progress: number, extra?: string) => {
   const barLength = 30;
   const completedLength = Math.round(barLength * progress);
   const remainingLength = barLength - completedLength;
   const progressBar = "█".repeat(completedLength) + "-".repeat(remainingLength);
   readline.cursorTo(process.stdout, 0);
-  process.stdout.write(`[${progressBar}] ${Math.round(progress * 100)}%`);
+  readline.clearLine(process.stdout, 0);
+  const extraInfo = extra ? ` ${extra}` : "";
+  process.stdout.write(`[${progressBar}] ${Math.round(progress * 100)}%${extraInfo}`);
 };
 
 // function updateProgress(progress: number) {

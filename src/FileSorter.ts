@@ -17,6 +17,7 @@ import {
 } from "./constant";
 import chalk from "chalk";
 import { imageSize } from "image-size";
+import { drawProgressBar } from "./upload/drawProgressBar";
 
 export class FileSorter {
   // 操作目录
@@ -155,43 +156,81 @@ export class FileSorter {
     }
   }
 
-  async batchCopyOrMoveFiles() {
+  // 获取待处理的文件列表
+  async getFilesToProcess(): Promise<string[]> {
+    const files: string[] = [];
     const dir = await opendir(this.BASE_PATH);
     for await (const dirent of dir) {
       if (dirent.isFile()) {
-        // 按画幅分类模式
         if (this.byFrame) {
+          // 按画幅模式下，只处理图片文件
           if (this.isImageFile(dirent.name)) {
-            const filePath = path.resolve(`${this.BASE_PATH}/${dirent.name}`);
-            const frameType = this.getFrameType(filePath);
-            if (frameType) {
-              await this.readAndWriteFile(
-                filePath,
-                path.resolve(`${this.BASE_PATH}/${frameType}/${dirent.name}`)
-              );
-            }
+            files.push(dirent.name);
           }
-          // 分类全部文件
         } else if (this.OPERATION_TYPE === COMMAND_DEFAULT_VALUE[ARGMAP.TYPE]) {
-          await this.readAndWriteFile(
-            path.resolve(`${this.BASE_PATH}/${dirent.name}`),
-            path.resolve(
-              `${this.BASE_PATH}/${dirent.name.split(".")[1]}/${dirent.name}`
-            )
-          );
-          // 分类指定类型的文件
+          // 分类全部文件
+          files.push(dirent.name);
         } else if (dirent.name.split(".")[1] === this.OPERATION_TYPE) {
-          await this.readAndWriteFile(
-            path.resolve(`${this.BASE_PATH}/${dirent.name}`),
-            path.resolve(
-              `${this.BASE_PATH}/${dirent.name.split(".")[1]}/${dirent.name}`
-            )
-          );
+          // 分类指定类型的文件
+          files.push(dirent.name);
         }
       }
     }
+    return files;
+  }
+
+  async batchCopyOrMoveFiles() {
+    const files = await this.getFilesToProcess();
+    const total = files.length;
+
+    if (total === 0) {
+      console.log(chalk.yellow("没有找到需要处理的文件"));
+      return;
+    }
+
+    console.log(chalk.cyan(`共 ${total} 个文件待处理`));
+
+    let processed = 0;
+
+    for (const fileName of files) {
+      const filePath = path.resolve(`${this.BASE_PATH}/${fileName}`);
+
+      // 按画幅分类模式
+      if (this.byFrame) {
+        const frameType = this.getFrameType(filePath);
+        if (frameType) {
+          await this.readAndWriteFile(
+            filePath,
+            path.resolve(`${this.BASE_PATH}/${frameType}/${fileName}`)
+          );
+        }
+        // 分类全部文件
+      } else if (this.OPERATION_TYPE === COMMAND_DEFAULT_VALUE[ARGMAP.TYPE]) {
+        await this.readAndWriteFile(
+          filePath,
+          path.resolve(
+            `${this.BASE_PATH}/${fileName.split(".")[1]}/${fileName}`
+          )
+        );
+        // 分类指定类型的文件
+      } else if (fileName.split(".")[1] === this.OPERATION_TYPE) {
+        await this.readAndWriteFile(
+          filePath,
+          path.resolve(
+            `${this.BASE_PATH}/${fileName.split(".")[1]}/${fileName}`
+          )
+        );
+      }
+
+      processed++;
+      drawProgressBar(processed / total, `(${processed}/${total})`);
+    }
+
+    // 进度条完成后换行
+    process.stdout.write("\n");
 
     if (this.isMove) {
+      console.log(chalk.cyan("正在移除源文件..."));
       await this.removeAllFile();
     }
   }
