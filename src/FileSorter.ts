@@ -113,8 +113,13 @@ export class FileSorter {
     }
 
     for (let i = 0; i < types.length; i++) {
+      const dirPath = path.resolve(this.BASE_PATH, types[i]);
+      // 目录已存在则跳过
+      if (existsSync(dirPath)) {
+        continue;
+      }
       try {
-        await mkdir(this.BASE_PATH + "/" + types[i]);
+        await mkdir(dirPath);
       } catch (error) {
         if ((error as any).code === ERRCODEMAP.EEXIST) {
           continue;
