@@ -1,4 +1,4 @@
-import { existsSync } from "fs";
+import { existsSync, readFileSync } from "fs";
 import {
   readdir,
   mkdir,
@@ -8,8 +8,15 @@ import {
   unlink,
 } from "fs/promises";
 import path from "path";
-import { ARGMAP, COMMAND_DEFAULT_VALUE, ERRCODEMAP } from "./constant";
+import {
+  ARGMAP,
+  COMMAND_DEFAULT_VALUE,
+  ERRCODEMAP,
+  FRAME_TYPE,
+  IMAGE_EXTENSIONS,
+} from "./constant";
 import chalk from "chalk";
+import { imageSize } from "image-size";
 
 export class FileSorter {
   // 操作目录
@@ -18,11 +25,19 @@ export class FileSorter {
   private OPERATION_TYPE = "";
   // 删除 or 移动
   private isMove = false;
+  // 按画幅分类
+  private byFrame = false;
 
-  constructor(path: string, operationType: string, isMove = false) {
+  constructor(
+    path: string,
+    operationType: string,
+    isMove = false,
+    byFrame = false
+  ) {
     this.BASE_PATH = path;
     this.OPERATION_TYPE = operationType;
     this.isMove = isMove;
+    this.byFrame = byFrame;
   }
 
   isExistsDir() {
@@ -55,12 +70,47 @@ export class FileSorter {
     }
   }
 
+  // 判断是否为图片文件
+  isImageFile(filename: string): boolean {
+    const ext = filename.split(".").pop()?.toLowerCase();
+    return ext ? IMAGE_EXTENSIONS.includes(ext) : false;
+  }
+
+  // 获取图片画幅类型
+  getFrameType(filePath: string): string | null {
+    try {
+      const buffer = readFileSync(filePath);
+      const dimensions = imageSize(buffer);
+      if (!dimensions.width || !dimensions.height) {
+        return null;
+      }
+      if (dimensions.width > dimensions.height) {
+        return FRAME_TYPE.HORIZONTAL; // 横图
+      } else if (dimensions.width < dimensions.height) {
+        return FRAME_TYPE.VERTICAL; // 竖图
+      } else {
+        return FRAME_TYPE.SQUARE; // 方图
+      }
+    } catch (error) {
+      console.log(chalk.yellow(`无法读取图片尺寸: ${filePath}`));
+      return null;
+    }
+  }
+
   // 批量创建目录
   async batchCreateDir() {
-    const types =
-      this.OPERATION_TYPE === COMMAND_DEFAULT_VALUE[ARGMAP.TYPE]
-        ? await this.getAllFileTyps()
-        : [this.OPERATION_TYPE];
+    let types: string[];
+
+    if (this.byFrame) {
+      // 按画幅分类时，创建横图、竖图、方图目录
+      types = Object.values(FRAME_TYPE);
+    } else {
+      types =
+        this.OPERATION_TYPE === COMMAND_DEFAULT_VALUE[ARGMAP.TYPE]
+          ? await this.getAllFileTyps()
+          : [this.OPERATION_TYPE];
+    }
+
     for (let i = 0; i < types.length; i++) {
       try {
         await mkdir(this.BASE_PATH + "/" + types[i]);
@@ -91,7 +141,12 @@ export class FileSorter {
     const dir = await opendir(this.BASE_PATH);
     for await (const dirent of dir) {
       if (dirent.isFile()) {
-        if (this.OPERATION_TYPE === COMMAND_DEFAULT_VALUE[ARGMAP.TYPE]) {
+        if (this.byFrame) {
+          // 按画幅模式下，只移除图片文件
+          if (this.isImageFile(dirent.name)) {
+            await unlink(path.resolve(`${this.BASE_PATH}/${dirent.name}`));
+          }
+        } else if (this.OPERATION_TYPE === COMMAND_DEFAULT_VALUE[ARGMAP.TYPE]) {
           await unlink(path.resolve(`${this.BASE_PATH}/${dirent.name}`));
         } else if (dirent.name.split(".")[1] === this.OPERATION_TYPE) {
           await unlink(path.resolve(`${this.BASE_PATH}/${dirent.name}`));
@@ -104,8 +159,20 @@ export class FileSorter {
     const dir = await opendir(this.BASE_PATH);
     for await (const dirent of dir) {
       if (dirent.isFile()) {
-        // 分类全部文件
-        if (this.OPERATION_TYPE === COMMAND_DEFAULT_VALUE[ARGMAP.TYPE]) {
+        // 按画幅分类模式
+        if (this.byFrame) {
+          if (this.isImageFile(dirent.name)) {
+            const filePath = path.resolve(`${this.BASE_PATH}/${dirent.name}`);
+            const frameType = this.getFrameType(filePath);
+            if (frameType) {
+              await this.readAndWriteFile(
+                filePath,
+                path.resolve(`${this.BASE_PATH}/${frameType}/${dirent.name}`)
+              );
+            }
+          }
+          // 分类全部文件
+        } else if (this.OPERATION_TYPE === COMMAND_DEFAULT_VALUE[ARGMAP.TYPE]) {
           await this.readAndWriteFile(
             path.resolve(`${this.BASE_PATH}/${dirent.name}`),
             path.resolve(

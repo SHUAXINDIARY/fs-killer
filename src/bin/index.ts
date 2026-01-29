@@ -10,7 +10,8 @@ const options = sorter.getOptions();
 const cf = new FileSorter(
   options.directory as string,
   options.type as string,
-  options.move ? true : false
+  options.move ? true : false,
+  options.frame ? true : false
 );
 
 cf.start();

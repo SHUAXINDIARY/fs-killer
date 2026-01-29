@@ -31,7 +31,8 @@ export class SortCommand {
     return this.comm.opts<{
       directory?: string;
       type?: string;
-      move?: string;
+      move?: boolean;
+      frame?: boolean;
     }>();
   }
 }

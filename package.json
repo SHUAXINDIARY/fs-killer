@@ -1,13 +1,13 @@
 {
   "name": "fs-killer",
-  "version": "1.3.1",
+  "version": "1.4.0",
   "main": "./lib/index.js",
   "license": "MIT",
   "type": "commonjs",
   "author": "SHUAXIN",
   "bin": {
-    "sorter": "./lib/bin/index.js",
-    "upload": "./lib/bin/upload.js"
+    "sorter": "lib/bin/index.js",
+    "upload": "lib/bin/upload.js"
   },
   "keywords": [
     "node",
@@ -21,7 +21,10 @@
     "upload": "ts-node ./src/bin/upload.ts"
   },
   "homepage": "https://github.com/SHUAXINDIARY/fileSorter",
-  "repository": "https://github.com/SHUAXINDIARY/fileSorter",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SHUAXINDIARY/fileSorter.git"
+  },
   "devDependencies": {
     "@tsconfig/node18": "^18.2.2",
     "@types/node": "^18.0.3",
@@ -35,6 +38,7 @@
   "dependencies": {
     "chalk": "4.1.0",
     "commander": "^9.3.0",
+    "image-size": "^2.0.2",
     "qiniu": "^7.11.0"
   }
 }
