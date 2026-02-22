@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from "fs";
+import exifr from "exifr";
 import {
   readdir,
   mkdir,
@@ -59,6 +60,9 @@ export class FileSorter {
     try {
       const data = await readdir(this.BASE_PATH);
       return data.reduce((total, item) => {
+        if (this.isSystemFile(item)) {
+          return total;
+        }
         const _type = item.split(".")?.[1];
         if (item.split(".").length > 1 && !total.includes(_type)) {
           total.push(_type);
@@ -71,23 +75,42 @@ export class FileSorter {
     }
   }
 
+  // 判断是否为 macOS 系统文件
+  isSystemFile(filename: string): boolean {
+    return filename === ".DS_Store";
+  }
+
   // 判断是否为图片文件
   isImageFile(filename: string): boolean {
     const ext = filename.split(".").pop()?.toLowerCase();
     return ext ? IMAGE_EXTENSIONS.includes(ext) : false;
   }
 
-  // 获取图片画幅类型
-  getFrameType(filePath: string): string | null {
+  // 获取图片画幅类型（异步方法，需要读取 EXIF 信息）
+  async getFrameType(filePath: string): Promise<string | null> {
     try {
       const buffer = readFileSync(filePath);
       const dimensions = imageSize(buffer);
       if (!dimensions.width || !dimensions.height) {
         return null;
       }
-      if (dimensions.width > dimensions.height) {
+
+      let width = dimensions.width;
+      let height = dimensions.height;
+
+      // 读取 EXIF 方向信息，orientation 为 5-8 时表示图片需要旋转 90°/270°，宽高需要交换
+      try {
+        const exif = await exifr.parse(buffer, { pick: ["Orientation"] });
+        if (exif?.Orientation && exif.Orientation >= 5 && exif.Orientation <= 8) {
+          [width, height] = [height, width];
+        }
+      } catch {
+        // EXIF 解析失败时使用原始尺寸
+      }
+
+      if (width > height) {
         return FRAME_TYPE.HORIZONTAL; // 横图
-      } else if (dimensions.width < dimensions.height) {
+      } else if (width < height) {
         return FRAME_TYPE.VERTICAL; // 竖图
       } else {
         return FRAME_TYPE.SQUARE; // 方图
@@ -146,7 +169,7 @@ export class FileSorter {
   async removeAllFile() {
     const dir = await opendir(this.BASE_PATH);
     for await (const dirent of dir) {
-      if (dirent.isFile()) {
+      if (dirent.isFile() && !this.isSystemFile(dirent.name)) {
         if (this.byFrame) {
           // 按画幅模式下，只移除图片文件
           if (this.isImageFile(dirent.name)) {
@@ -166,7 +189,7 @@ export class FileSorter {
     const files: string[] = [];
     const dir = await opendir(this.BASE_PATH);
     for await (const dirent of dir) {
-      if (dirent.isFile()) {
+      if (dirent.isFile() && !this.isSystemFile(dirent.name)) {
         if (this.byFrame) {
           // 按画幅模式下，只处理图片文件
           if (this.isImageFile(dirent.name)) {
@@ -184,6 +207,10 @@ export class FileSorter {
     return files;
   }
 
+  /**
+   * 批量复制或移动文件
+   * 根据分类模式将文件复制到对应目录，若为移动模式则在完成后删除源文件
+   */
   async batchCopyOrMoveFiles() {
     const files = await this.getFilesToProcess();
     const total = files.length;
@@ -200,25 +227,25 @@ export class FileSorter {
     for (const fileName of files) {
       const filePath = path.resolve(`${this.BASE_PATH}/${fileName}`);
 
-      // 按画幅分类模式
       if (this.byFrame) {
-        const frameType = this.getFrameType(filePath);
+        // 按画幅分类模式：根据图片宽高比分类到横图/竖图/方图目录
+        const frameType = await this.getFrameType(filePath);
         if (frameType) {
           await this.readAndWriteFile(
             filePath,
             path.resolve(`${this.BASE_PATH}/${frameType}/${fileName}`)
           );
         }
-        // 分类全部文件
       } else if (this.OPERATION_TYPE === COMMAND_DEFAULT_VALUE[ARGMAP.TYPE]) {
+        // 分类全部文件：按文件扩展名分类到对应目录
         await this.readAndWriteFile(
           filePath,
           path.resolve(
             `${this.BASE_PATH}/${fileName.split(".")[1]}/${fileName}`
           )
         );
-        // 分类指定类型的文件
       } else if (fileName.split(".")[1] === this.OPERATION_TYPE) {
+        // 分类指定类型的文件：仅处理匹配指定扩展名的文件
         await this.readAndWriteFile(
           filePath,
           path.resolve(
@@ -231,10 +258,10 @@ export class FileSorter {
       drawProgressBar(processed / total, `(${processed}/${total})`);
     }
 
-    // 进度条完成后换行
     process.stdout.write("\n");
 
     if (this.isMove) {
+      // 移动模式：复制完成后删除源文件
       console.log(chalk.cyan("正在移除源文件..."));
       await this.removeAllFile();
     }
