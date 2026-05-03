@@ -20,6 +20,7 @@ import chalk from "chalk";
 import { imageSize } from "image-size";
 import { drawProgressBar } from "./upload/drawProgressBar";
 
+// 负责按照扩展名或画幅，对目录中的文件进行分类复制/移动。
 export class FileSorter {
   // 操作目录
   private BASE_PATH = "";
@@ -36,12 +37,14 @@ export class FileSorter {
     isMove = false,
     byFrame = false
   ) {
+    // 保存运行参数，后续所有流程都围绕这些配置执行。
     this.BASE_PATH = path;
     this.OPERATION_TYPE = operationType;
     this.isMove = isMove;
     this.byFrame = byFrame;
   }
 
+  // 校验目标目录是否存在，避免后续流程在无效路径上继续执行。
   isExistsDir() {
     try {
       if (existsSync(this.BASE_PATH)) {
@@ -64,6 +67,7 @@ export class FileSorter {
           return total;
         }
         const _type = item.split(".")?.[1];
+        // 仅收集存在扩展名且未重复的类型。
         if (item.split(".").length > 1 && !total.includes(_type)) {
           total.push(_type);
         }
@@ -101,7 +105,11 @@ export class FileSorter {
       // 读取 EXIF 方向信息，orientation 为 5-8 时表示图片需要旋转 90°/270°，宽高需要交换
       try {
         const exif = await exifr.parse(buffer, { pick: ["Orientation"] });
-        if (exif?.Orientation && exif.Orientation >= 5 && exif.Orientation <= 8) {
+        if (
+          exif?.Orientation &&
+          exif.Orientation >= 5 &&
+          exif.Orientation <= 8
+        ) {
           [width, height] = [height, width];
         }
       } catch {
@@ -129,6 +137,7 @@ export class FileSorter {
       // 按画幅分类时，创建横图、竖图、方图目录
       types = Object.values(FRAME_TYPE);
     } else {
+      // "all" 模式下按目录内现有扩展名建目录；否则只建指定类型目录。
       types =
         this.OPERATION_TYPE === COMMAND_DEFAULT_VALUE[ARGMAP.TYPE]
           ? await this.getAllFileTyps()
@@ -158,6 +167,7 @@ export class FileSorter {
   // 读写文件
   async readAndWriteFile(readPath: string, writePath: string) {
     try {
+      // 使用读写方式实现“复制”，后续是否删除源文件由 isMove 决定。
       const data = await readFile(readPath);
       writeFile(path.resolve(writePath), data);
     } catch (error) {
@@ -165,7 +175,7 @@ export class FileSorter {
     }
   }
 
-  // 移除文件
+  // 移除已完成分类的源文件（仅在移动模式下调用）
   async removeAllFile() {
     const dir = await opendir(this.BASE_PATH);
     for await (const dirent of dir) {
@@ -189,6 +199,7 @@ export class FileSorter {
     const files: string[] = [];
     const dir = await opendir(this.BASE_PATH);
     for await (const dirent of dir) {
+      // 统一过滤目录项：只处理普通文件，并排除系统文件。
       if (dirent.isFile() && !this.isSystemFile(dirent.name)) {
         if (this.byFrame) {
           // 按画幅模式下，只处理图片文件
@@ -255,6 +266,7 @@ export class FileSorter {
       }
 
       processed++;
+      // 每处理一个文件都刷新进度条，便于观察长任务执行状态。
       drawProgressBar(processed / total, `(${processed}/${total})`);
     }
 
@@ -271,6 +283,7 @@ export class FileSorter {
   async start() {
     if (await this.isExistsDir()) {
       console.log(chalk.bgBlue.bold.white("开始执行"));
+      // 先确保目标目录结构就绪，再进入文件处理阶段。
       const operation = await this.batchCreateDir();
       operation && (await this.batchCopyOrMoveFiles());
       console.log(chalk.bgGreenBright.bold.white("执行完成"));

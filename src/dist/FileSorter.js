@@ -45,12 +45,14 @@ var __asyncValues = (this && this.__asyncValues) || function (o) {
 exports.__esModule = true;
 exports.FileSorter = void 0;
 var fs_1 = require("fs");
+var exifr_1 = require("exifr");
 var promises_1 = require("fs/promises");
 var path_1 = require("path");
 var constant_1 = require("./constant");
 var chalk_1 = require("chalk");
 var image_size_1 = require("image-size");
 var drawProgressBar_1 = require("./upload/drawProgressBar");
+// 负责按照扩展名或画幅，对目录中的文件进行分类复制/移动。
 var FileSorter = /** @class */ (function () {
     function FileSorter(path, operationType, isMove, byFrame) {
         if (isMove === void 0) { isMove = false; }
@@ -63,11 +65,13 @@ var FileSorter = /** @class */ (function () {
         this.isMove = false;
         // 按画幅分类
         this.byFrame = false;
+        // 保存运行参数，后续所有流程都围绕这些配置执行。
         this.BASE_PATH = path;
         this.OPERATION_TYPE = operationType;
         this.isMove = isMove;
         this.byFrame = byFrame;
     }
+    // 校验目标目录是否存在，避免后续流程在无效路径上继续执行。
     FileSorter.prototype.isExistsDir = function () {
         try {
             if (fs_1.existsSync(this.BASE_PATH)) {
@@ -100,6 +104,7 @@ var FileSorter = /** @class */ (function () {
                                     return total;
                                 }
                                 var _type = (_a = item.split(".")) === null || _a === void 0 ? void 0 : _a[1];
+                                // 仅收集存在扩展名且未重复的类型。
                                 if (item.split(".").length > 1 && !total.includes(_type)) {
                                     total.push(_type);
                                 }
@@ -124,33 +129,61 @@ var FileSorter = /** @class */ (function () {
         var ext = (_a = filename.split(".").pop()) === null || _a === void 0 ? void 0 : _a.toLowerCase();
         return ext ? constant_1.IMAGE_EXTENSIONS.includes(ext) : false;
     };
-    // 获取图片画幅类型
+    // 获取图片画幅类型（异步方法，需要读取 EXIF 信息）
     FileSorter.prototype.getFrameType = function (filePath) {
-        try {
-            var buffer = fs_1.readFileSync(filePath);
-            var dimensions = image_size_1.imageSize(buffer);
-            if (!dimensions.width || !dimensions.height) {
-                return null;
-            }
-            if (dimensions.width > dimensions.height) {
-                return constant_1.FRAME_TYPE.HORIZONTAL; // 横图
-            }
-            else if (dimensions.width < dimensions.height) {
-                return constant_1.FRAME_TYPE.VERTICAL; // 竖图
-            }
-            else {
-                return constant_1.FRAME_TYPE.SQUARE; // 方图
-            }
-        }
-        catch (error) {
-            console.log(chalk_1["default"].yellow("\u65E0\u6CD5\u8BFB\u53D6\u56FE\u7247\u5C3A\u5BF8: " + filePath));
-            return null;
-        }
+        return __awaiter(this, void 0, Promise, function () {
+            var buffer, dimensions, width, height, exif, _a, error_2;
+            var _b;
+            return __generator(this, function (_c) {
+                switch (_c.label) {
+                    case 0:
+                        _c.trys.push([0, 5, , 6]);
+                        buffer = fs_1.readFileSync(filePath);
+                        dimensions = image_size_1.imageSize(buffer);
+                        if (!dimensions.width || !dimensions.height) {
+                            return [2 /*return*/, null];
+                        }
+                        width = dimensions.width;
+                        height = dimensions.height;
+                        _c.label = 1;
+                    case 1:
+                        _c.trys.push([1, 3, , 4]);
+                        return [4 /*yield*/, exifr_1["default"].parse(buffer, { pick: ["Orientation"] })];
+                    case 2:
+                        exif = _c.sent();
+                        if ((exif === null || exif === void 0 ? void 0 : exif.Orientation) &&
+                            exif.Orientation >= 5 &&
+                            exif.Orientation <= 8) {
+                            _b = [height, width], width = _b[0], height = _b[1];
+                        }
+                        return [3 /*break*/, 4];
+                    case 3:
+                        _a = _c.sent();
+                        return [3 /*break*/, 4];
+                    case 4:
+                        if (width > height) {
+                            return [2 /*return*/, constant_1.FRAME_TYPE.HORIZONTAL]; // 横图
+                        }
+                        else if (width < height) {
+                            return [2 /*return*/, constant_1.FRAME_TYPE.VERTICAL]; // 竖图
+                        }
+                        else {
+                            return [2 /*return*/, constant_1.FRAME_TYPE.SQUARE]; // 方图
+                        }
+                        return [3 /*break*/, 6];
+                    case 5:
+                        error_2 = _c.sent();
+                        console.log(chalk_1["default"].yellow("\u65E0\u6CD5\u8BFB\u53D6\u56FE\u7247\u5C3A\u5BF8: " + filePath));
+                        return [2 /*return*/, null];
+                    case 6: return [2 /*return*/];
+                }
+            });
+        });
     };
     // 批量创建目录
     FileSorter.prototype.batchCreateDir = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var types, _a, i, dirPath, error_2;
+            var types, _a, i, dirPath, error_3;
             return __generator(this, function (_b) {
                 switch (_b.label) {
                     case 0:
@@ -168,6 +201,7 @@ var FileSorter = /** @class */ (function () {
                         _a = [this.OPERATION_TYPE];
                         _b.label = 4;
                     case 4:
+                        // "all" 模式下按目录内现有扩展名建目录；否则只建指定类型目录。
                         types = _a;
                         _b.label = 5;
                     case 5:
@@ -188,12 +222,12 @@ var FileSorter = /** @class */ (function () {
                         _b.sent();
                         return [3 /*break*/, 10];
                     case 9:
-                        error_2 = _b.sent();
-                        if (error_2.code === constant_1.ERRCODEMAP.EEXIST) {
+                        error_3 = _b.sent();
+                        if (error_3.code === constant_1.ERRCODEMAP.EEXIST) {
                             return [3 /*break*/, 10];
                         }
                         else {
-                            console.log(error_2);
+                            console.log(error_3);
                             return [2 /*return*/, false];
                         }
                         return [3 /*break*/, 10];
@@ -208,7 +242,7 @@ var FileSorter = /** @class */ (function () {
     // 读写文件
     FileSorter.prototype.readAndWriteFile = function (readPath, writePath) {
         return __awaiter(this, void 0, void 0, function () {
-            var data, error_3;
+            var data, error_4;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -219,15 +253,15 @@ var FileSorter = /** @class */ (function () {
                         promises_1.writeFile(path_1["default"].resolve(writePath), data);
                         return [3 /*break*/, 3];
                     case 2:
-                        error_3 = _a.sent();
-                        console.log(error_3);
+                        error_4 = _a.sent();
+                        console.log(error_4);
                         return [3 /*break*/, 3];
                     case 3: return [2 /*return*/];
                 }
             });
         });
     };
-    // 移除文件
+    // 移除已完成分类的源文件（仅在移动模式下调用）
     FileSorter.prototype.removeAllFile = function () {
         var e_1, _a;
         return __awaiter(this, void 0, void 0, function () {
@@ -310,6 +344,7 @@ var FileSorter = /** @class */ (function () {
                     case 4:
                         if (!(dir_2_1 = _b.sent(), !dir_2_1.done)) return [3 /*break*/, 6];
                         dirent = dir_2_1.value;
+                        // 统一过滤目录项：只处理普通文件，并排除系统文件。
                         if (dirent.isFile() && !this.isSystemFile(dirent.name)) {
                             if (this.byFrame) {
                                 // 按画幅模式下，只处理图片文件
@@ -372,50 +407,53 @@ var FileSorter = /** @class */ (function () {
                         _i = 0, files_1 = files;
                         _a.label = 2;
                     case 2:
-                        if (!(_i < files_1.length)) return [3 /*break*/, 11];
+                        if (!(_i < files_1.length)) return [3 /*break*/, 12];
                         fileName = files_1[_i];
                         filePath = path_1["default"].resolve(this.BASE_PATH + "/" + fileName);
-                        if (!this.byFrame) return [3 /*break*/, 5];
-                        frameType = this.getFrameType(filePath);
-                        if (!frameType) return [3 /*break*/, 4];
-                        return [4 /*yield*/, this.readAndWriteFile(filePath, path_1["default"].resolve(this.BASE_PATH + "/" + frameType + "/" + fileName))];
+                        if (!this.byFrame) return [3 /*break*/, 6];
+                        return [4 /*yield*/, this.getFrameType(filePath)];
                     case 3:
+                        frameType = _a.sent();
+                        if (!frameType) return [3 /*break*/, 5];
+                        return [4 /*yield*/, this.readAndWriteFile(filePath, path_1["default"].resolve(this.BASE_PATH + "/" + frameType + "/" + fileName))];
+                    case 4:
                         _a.sent();
-                        _a.label = 4;
-                    case 4: return [3 /*break*/, 9];
-                    case 5:
-                        if (!(this.OPERATION_TYPE === constant_1.COMMAND_DEFAULT_VALUE[constant_1.ARGMAP.TYPE])) return [3 /*break*/, 7];
-                        // 分类全部文件：按文件扩展名分类到对应目录
-                        return [4 /*yield*/, this.readAndWriteFile(filePath, path_1["default"].resolve(this.BASE_PATH + "/" + fileName.split(".")[1] + "/" + fileName))];
+                        _a.label = 5;
+                    case 5: return [3 /*break*/, 10];
                     case 6:
+                        if (!(this.OPERATION_TYPE === constant_1.COMMAND_DEFAULT_VALUE[constant_1.ARGMAP.TYPE])) return [3 /*break*/, 8];
+                        // 分类全部文件：按文件扩展名分类到对应目录
+                        return [4 /*yield*/, this.readAndWriteFile(filePath, path_1["default"].resolve(this.BASE_PATH + "/" + fileName.split(".")[1] + "/" + fileName))];
+                    case 7:
                         // 分类全部文件：按文件扩展名分类到对应目录
                         _a.sent();
-                        return [3 /*break*/, 9];
-                    case 7:
-                        if (!(fileName.split(".")[1] === this.OPERATION_TYPE)) return [3 /*break*/, 9];
+                        return [3 /*break*/, 10];
+                    case 8:
+                        if (!(fileName.split(".")[1] === this.OPERATION_TYPE)) return [3 /*break*/, 10];
                         // 分类指定类型的文件：仅处理匹配指定扩展名的文件
                         return [4 /*yield*/, this.readAndWriteFile(filePath, path_1["default"].resolve(this.BASE_PATH + "/" + fileName.split(".")[1] + "/" + fileName))];
-                    case 8:
+                    case 9:
                         // 分类指定类型的文件：仅处理匹配指定扩展名的文件
                         _a.sent();
-                        _a.label = 9;
-                    case 9:
-                        processed++;
-                        drawProgressBar_1.drawProgressBar(processed / total, "(" + processed + "/" + total + ")");
                         _a.label = 10;
                     case 10:
+                        processed++;
+                        // 每处理一个文件都刷新进度条，便于观察长任务执行状态。
+                        drawProgressBar_1.drawProgressBar(processed / total, "(" + processed + "/" + total + ")");
+                        _a.label = 11;
+                    case 11:
                         _i++;
                         return [3 /*break*/, 2];
-                    case 11:
+                    case 12:
                         process.stdout.write("\n");
-                        if (!this.isMove) return [3 /*break*/, 13];
+                        if (!this.isMove) return [3 /*break*/, 14];
                         // 移动模式：复制完成后删除源文件
                         console.log(chalk_1["default"].cyan("正在移除源文件..."));
                         return [4 /*yield*/, this.removeAllFile()];
-                    case 12:
+                    case 13:
                         _a.sent();
-                        _a.label = 13;
-                    case 13: return [2 /*return*/];
+                        _a.label = 14;
+                    case 14: return [2 /*return*/];
                 }
             });
         });
