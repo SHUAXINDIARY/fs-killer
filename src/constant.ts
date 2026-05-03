@@ -13,6 +13,8 @@ export const ARGMAP = {
   IS_MOVE: "isMove",
   // 按画幅分类（横图/竖图/方图）
   BY_FRAME: "byFrame",
+  // 按文件名（不含扩展名）分类
+  BY_NAME: "byName",
 };
 
 // 参数配置选项
@@ -21,6 +23,7 @@ export const COMMAND_OPTIONS = {
   [ARGMAP.TYPE]: "-t, --type <fileType>",
   [ARGMAP.IS_MOVE]: "-m, --move",
   [ARGMAP.BY_FRAME]: "-f, --frame",
+  [ARGMAP.BY_NAME]: "-n, --name",
 };
 
 // 参数描述
@@ -31,6 +34,8 @@ export const COMMAND_ARG_DES = {
     "If this parameter is added, it will move all your files instead of copying them",
   [ARGMAP.BY_FRAME]:
     "Sort images by aspect ratio (horizontal/vertical/square)",
+  [ARGMAP.BY_NAME]:
+    "Sort duplicated files by filename (without extension) into folders",
 };
 
 // 参数默认值

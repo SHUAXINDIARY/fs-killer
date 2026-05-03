@@ -41,6 +41,7 @@ export class SortCommand {
       type?: string;
       move?: boolean;
       frame?: boolean;
+      name?: boolean;
     }>();
   }
 }

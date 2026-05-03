@@ -1,10 +1,12 @@
 import { existsSync, readFileSync } from "fs";
 import exifr from "exifr";
 import {
+  access,
   readdir,
   mkdir,
   opendir,
   readFile,
+  rename,
   writeFile,
   unlink,
 } from "fs/promises";
@@ -30,18 +32,22 @@ export class FileSorter {
   private isMove = false;
   // 按画幅分类
   private byFrame = false;
+  // 按文件名（不含扩展名）分类
+  private byName = false;
 
   constructor(
     path: string,
     operationType: string,
     isMove = false,
-    byFrame = false
+    byFrame = false,
+    byName = false
   ) {
     // 保存运行参数，后续所有流程都围绕这些配置执行。
     this.BASE_PATH = path;
     this.OPERATION_TYPE = operationType;
     this.isMove = isMove;
     this.byFrame = byFrame;
+    this.byName = byName;
   }
 
   // 校验目标目录是否存在，避免后续流程在无效路径上继续执行。
@@ -218,6 +224,94 @@ export class FileSorter {
     return files;
   }
 
+  // 检查目标路径是否存在
+  async exists(targetPath: string) {
+    try {
+      await access(targetPath);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  // 按文件名（不含扩展名）分类：仅处理“同名不同扩展名”的重复文件
+  async sortByFileName() {
+    const dir = await opendir(this.BASE_PATH);
+    const fileMap = new Map<
+      string,
+      { fullPath: string; ext: string; originalName: string }[]
+    >();
+
+    for await (const dirent of dir) {
+      if (!dirent.isFile() || this.isSystemFile(dirent.name)) {
+        continue;
+      }
+
+      const parsed = path.parse(dirent.name);
+      const baseName = parsed.name;
+      const ext = parsed.ext;
+      const fullPath = path.resolve(`${this.BASE_PATH}/${dirent.name}`);
+
+      if (!fileMap.has(baseName)) {
+        fileMap.set(baseName, []);
+      }
+      fileMap.get(baseName)?.push({
+        fullPath,
+        ext,
+        originalName: dirent.name,
+      });
+    }
+
+    let total = 0;
+    for (const [, group] of fileMap.entries()) {
+      if (group.length >= 2) {
+        total += group.length;
+      }
+    }
+
+    if (total === 0) {
+      console.log(chalk.yellow("没有找到同名文件可分类"));
+      return;
+    }
+
+    console.log(chalk.cyan(`共 ${total} 个文件待处理`));
+    let processed = 0;
+
+    for (const [baseName, group] of fileMap.entries()) {
+      if (group.length < 2) {
+        continue;
+      }
+
+      const targetDir = path.resolve(this.BASE_PATH, baseName);
+      await mkdir(targetDir, { recursive: true });
+
+      for (const file of group) {
+        let targetPath = path.resolve(targetDir, file.originalName);
+
+        // 防止极端重名冲突：依次尝试 baseName_1.ext, baseName_2.ext...
+        if (await this.exists(targetPath)) {
+          let i = 1;
+          let newPath = "";
+
+          do {
+            newPath = path.resolve(targetDir, `${baseName}_${i}${file.ext}`);
+            i++;
+          } while (await this.exists(newPath));
+
+          targetPath = newPath;
+        }
+
+        // 与 sortVideo.js 一致：直接移动文件到目标目录
+        await rename(file.fullPath, targetPath);
+
+        processed++;
+        drawProgressBar(processed / total, `(${processed}/${total})`);
+      }
+    }
+
+    process.stdout.write("\n");
+  }
+
   /**
    * 批量复制或移动文件
    * 根据分类模式将文件复制到对应目录，若为移动模式则在完成后删除源文件
@@ -283,6 +377,11 @@ export class FileSorter {
   async start() {
     if (await this.isExistsDir()) {
       console.log(chalk.bgBlue.bold.white("开始执行"));
+      if (this.byName) {
+        await this.sortByFileName();
+        console.log(chalk.bgGreenBright.bold.white("执行完成"));
+        return;
+      }
       // 先确保目标目录结构就绪，再进入文件处理阶段。
       const operation = await this.batchCreateDir();
       operation && (await this.batchCopyOrMoveFiles());
